@@ -126,14 +126,14 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
                 }
                 interval = calc_time_interval(&params[i].start, &params[i].last);
                 speed = (long double) params[i].loop_count / interval;
-                printf("Thread %d: %ld loops used %Lf s. (Approximate %Lf tbps)\n",
+                printf("Thread %d: %ld loops used %Lf s. (Approximate %Lf tps)\n",
                        i + 1, params[i].loop_count, interval, speed);
                 sum_loop += params[i].loop_count;
             }
 
             interval = calc_time_interval(&threads_s, &threads_t);
             speed = (long double) sum_loop / interval;
-            printf("%ld loops used %Lf s. (Approximate %Lf tbps)\n",
+            printf("%ld loops used %Lf s. (Approximate %Lf tps)\n",
                    sum_loop, interval, speed);
 
             goto cleanup;
@@ -142,13 +142,16 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
         }
     } else {
         non_thread_func(&params[0], options);
-        if (params[i].loop_count == -1) speed = -2;
+        if (params[i].loop_count == -1) {
+            speed = -2;
+            goto cleanup;
+        }
     }
 
     single_test_result:
     interval = calc_time_interval(&params[0].start, &params[0].last);
     speed = (long double) params[0].loop_count / interval;
-    printf("%ld loops used %Lf s. (Approximate %Lf tbps)\n",
+    printf("%ld loops used %Lf s. (Approximate %Lf tps)\n",
            params[0].loop_count, interval, speed);
 
     cleanup:

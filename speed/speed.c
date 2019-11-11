@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "sys_random.h"
 
 #ifdef _WIN32
 #else
@@ -15,6 +14,7 @@
 #include "argparse.h"
 #include "speedtester.h"
 #include "test_include.h"
+#include "sys_random.h"
 
 //======================================== argument process definition ===================================//
 static OPT_STATE __help(const char **args, int count, void *data);
@@ -29,7 +29,7 @@ static OPT_STATE __target_hash(const char **args, int count, void *data);
 
 static OPT_STATE __target_hmac(const char **args, int count, void *data);
 
-static OPT_STATE __target_wrp(const char **args, int count, void *data);
+static OPT_STATE __target_keygen(const char **args, int count, void *data);
 
 static OPT_STATE __list(const char **args, int count, void *data);
 
@@ -47,7 +47,7 @@ const OPTION OPTION_ARRAY[OPTION_ARRAY_LENGTH] = {
         {"whitebox",   'W', 0, "",             "Test whitebox ciphers",                              __target_whitebox},
         {"hash",       'H', 0, "",             "Test hash functions",                                __target_hash},
         {"hmac",       'M', 0, "",             "Test hmac functions",                                __target_hmac},
-        {"wrp",        'w', 0, "",             "Test wrp algorithms",                                __target_wrp},
+        {"keygen",     'K', 0, "",             "Test keygen algorithms",                             __target_keygen},
         {"list",       'l', 0, "",             "List avaliable crypto algorithms",                   __list},
         {"thread",     't', 1, "<thread num>", "set num of thread to run, set 0 for not use thread", __thread_set},
         {"seconds",    's', 1, "<interval>",   "Set time interval for algorithm to loop",            __seconds_set},
@@ -114,21 +114,23 @@ static uint32_t text_size_arr[TEST_SIZE_COUNT] = {16, 64, 256, 1024, 8192, 16384
 #define TO_TEST 2
 static int speed_flag[ALGORITHM_COUNT] = {NOT_TEST};
 static int asym_speed_flag[ASYM_ALGORITHM_COUNT] = {NOT_TEST};
+static int keygen_speed_flag[KEYGEN_ALGORITHMS_COUNT] = {NOT_TEST};
 static long double speed_result[ALGORITHM_COUNT][TEST_SIZE_COUNT] = {0};
 static long double asym_speed_result[ASYM_ALGORITHM_COUNT][2] = {0};
+static long double keygen_speed_result[KEYGEN_ALGORITHMS_COUNT] = {0};
 
 int main(int argc, const char *argv[]) {
 
     unsigned long i;
     int j, k;
-    int is_valid = 0, is_ciph = 0, is_asym = 0;
+    int is_valid = 0, is_ciph = 0, is_asym = 0, is_keygen = 0;
     long double speed;
-
-    getrandombits(text, MAX_TEST_SIZE);
 
     // default settings
     OPT_CONF opt = {EXECUTE_MODE, ALGORITHM_DEFAULT, 3, 1};
     OPT_RESULT result;
+
+    getrandombits(text, MAX_TEST_SIZE);
 
 #ifdef _WIN32
 #else
@@ -172,11 +174,18 @@ int main(int argc, const char *argv[]) {
                 }
             }
 
+            if (opt.mask & ALGORITHM_KEYGEN) {
+                for (i = 0; i < KEYGEN_ALGORITHMS_COUNT; ++i) {
+                    keygen_speed_flag[i] = TO_TEST;
+                    is_keygen = 1;
+                }
+            }
+
         } else {
 
-            is_valid = 0;
             for (j = result.offset; j < argc; ++j) {
 
+                is_valid = 0;
                 for (i = 0; i < ALGORITHM_COUNT; ++i) {
                     if (opt.mask & ALL_ALGORITHMS[i].type &&
                     !strncmp(argv[j], ALL_ALGORITHMS[i].name, strlen(argv[j]))) {
@@ -185,8 +194,6 @@ int main(int argc, const char *argv[]) {
                         is_ciph = 1;
                     }
                 }
-
-                if (is_valid) continue;
 
                 for (i = 0; i < ASYM_ALGORITHM_COUNT; ++i) {
                     if (opt.mask & ALL_ASYM_ALGORITHMS[i].type &&
@@ -197,6 +204,14 @@ int main(int argc, const char *argv[]) {
                     }
                 }
 
+                for (i = 0; i < KEYGEN_ALGORITHMS_COUNT; ++i) {
+                    if (opt.mask & KEYGEN_ALGORITHMS[i].type &&
+                        !strncmp(argv[j], KEYGEN_ALGORITHMS[i].name, strlen(argv[j]))) {
+                        keygen_speed_flag[i] = TO_TEST;
+                        is_valid = 1;
+                        is_keygen = 1;
+                    }
+                }
 
                 if (is_valid) continue;
                 printf("Algorithm not found, abort.");
@@ -226,6 +241,14 @@ int main(int argc, const char *argv[]) {
             }
         }
 
+        for (i = 0; i < KEYGEN_ALGORITHMS_COUNT; ++i) {
+            if (keygen_speed_flag[i] == TO_TEST) {
+                speed = test_algorithm(&KEYGEN_ALGORITHMS[i], &opt, text, 0, tmpout);
+                if (speed < 0) keygen_speed_flag[i] = TEST_ERROR;
+                else keygen_speed_result[i] = speed;
+            }
+        }
+
 #ifdef _WIN32
 #else
         uname(&n);
@@ -237,7 +260,7 @@ int main(int argc, const char *argv[]) {
 
         // summary
         if (is_ciph) {
-            printf("alg_name%10.s\t", "");
+            printf("alg_name%16.s\t", "");
             for (k = 0; k < TEST_SIZE_COUNT; ++k) {
                 printf("%d bytes    \t", text_size_arr[k]);
             }
@@ -247,8 +270,8 @@ int main(int argc, const char *argv[]) {
                 if (speed_flag[i] == NOT_TEST) continue;
 
                 printf("%s%*.s\t", ALL_ALGORITHMS[i].description,
-                       (int) (18 < strlen(ALL_ALGORITHMS[i].description) ?
-                              strlen(ALL_ALGORITHMS[i].description) : 18 - strlen(ALL_ALGORITHMS[i].description)),
+                       (int) (24 < strlen(ALL_ALGORITHMS[i].description) ?
+                              strlen(ALL_ALGORITHMS[i].description) : 24 - strlen(ALL_ALGORITHMS[i].description)),
                        "");
 
                 if (speed_flag[i] == TEST_ERROR) {
@@ -260,19 +283,20 @@ int main(int argc, const char *argv[]) {
                 }
                 printf("\n");
             }
+            printf("\n");
         }
 
         if (is_asym) {
-            printf("alg_name%10.s\t", "");
-            printf("sign/s        \t");
-            printf("verify/s\n");
+            printf("alg_name%16.s\t", "");
+            printf("private/s    \t");
+            printf("public/s\n");
 
             for (i = 0; i < ASYM_ALGORITHM_COUNT; ++i) {
                 if (asym_speed_flag[i] == NOT_TEST) continue;
 
                 printf("%s%*.s\t", ALL_ASYM_ALGORITHMS[i].name,
-                       (int) (18 < strlen(ALL_ASYM_ALGORITHMS[i].name) ?
-                              strlen(ALL_ASYM_ALGORITHMS[i].name) : 18 - strlen(ALL_ASYM_ALGORITHMS[i].name)),
+                       (int) (24 < strlen(ALL_ASYM_ALGORITHMS[i].name) ?
+                              strlen(ALL_ASYM_ALGORITHMS[i].name) : 24 - strlen(ALL_ASYM_ALGORITHMS[i].name)),
                        "");
 
                 if (asym_speed_flag[i] == TEST_ERROR) {
@@ -280,17 +304,41 @@ int main(int argc, const char *argv[]) {
                     continue;
                 }
 
-                printf("%6.*Lf tbps\t", (6 - (int) log10l(asym_speed_result[i][CONVERT_PRI])),
+                printf("%6.*Lf tps\t", (6 - (int) log10l(asym_speed_result[i][CONVERT_PRI])),
                        asym_speed_result[i][CONVERT_PRI]);
-                printf("%6.*Lf tbps\t", (6 - (int) log10l(asym_speed_result[i][CONVERT_PUB])),
+                printf("%6.*Lf tps\t", (6 - (int) log10l(asym_speed_result[i][CONVERT_PUB])),
                        asym_speed_result[i][CONVERT_PUB]);
+                printf("\n");
+            }
+            printf("\n");
+        }
+
+        if (is_keygen) {
+            printf("alg_name%16.s\t", "");
+            printf("speed/s\n");
+
+            for (i = 0; i < KEYGEN_ALGORITHMS_COUNT; ++i) {
+                if (keygen_speed_flag[i] == NOT_TEST) continue;
+
+                printf("%s%*.s\t", KEYGEN_ALGORITHMS[i].name,
+                       (int) (24 < strlen(KEYGEN_ALGORITHMS[i].name) ?
+                              strlen(KEYGEN_ALGORITHMS[i].name) : 24 - strlen(KEYGEN_ALGORITHMS[i].name)),
+                       "");
+
+                if (keygen_speed_flag[i] == TEST_ERROR) {
+                    printf("Algorithm error at runtime.\n");
+                    continue;
+                }
+
+                printf("%6.*Lf tps\t", (6 - (int) log10l(keygen_speed_result[i])), keygen_speed_result[i]);
                 printf("\n");
             }
         }
 
-        if (!is_asym && !is_ciph) {
+        if (!is_asym && !is_ciph && !is_keygen) {
             printf("No algorithm selected.\n");
         }
+        printf("\n");
     }
 
     return 0;
@@ -341,8 +389,8 @@ static OPT_STATE __target_hmac(const char **args, int count, void *data) {
     return CONTINUE;
 }
 
-static OPT_STATE __target_wrp(const char **args, int count, void *data) {
-    ((OPT_CONF *) data)->mask |= ALGORITHM_WRP;
+static OPT_STATE __target_keygen(const char **args, int count, void *data) {
+    ((OPT_CONF *) data)->mask |= ALGORITHM_KEYGEN;
     ((OPT_CONF *) data)->mode = EXECUTE_MODE;
 
     return CONTINUE;

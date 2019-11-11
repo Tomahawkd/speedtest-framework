@@ -15,8 +15,8 @@
 #define ALGORITHM_HASH      0b000100u
 #define ALGORITHM_HMAC      0b001000u
 #define ALGORITHM_WHITEBOX  0b010000u
-#define ALGORITHM_WRP       0b100000u
-#define ALGORITHM_ALL       0b011111u
+#define ALGORITHM_KEYGEN    0b100000u
+#define ALGORITHM_ALL       0b111111u
 // this value is only to identify if it is default, the mask will be set to ALL if DEFAULT
 #define ALGORITHM_DEFAULT   0b000000u
 
@@ -32,8 +32,8 @@ typedef struct {
 } ALGORITHM;
 
 #define QUOTE(str) #str
-#define ASYM_ALGORITHM_new(name, keysize, type, pub_test_func, pub_setup_func, pub_cleanup, pri_test_func, pri_setup_func, pri_cleanup) \
-{QUOTE(name-keysize), keysize/8, type | ALGORITHM_ASYM, QUOTE(name##keysize public operation), QUOTE(name##keysize private operation), pub_test_func, pub_setup_func, pub_cleanup, pri_test_func, pri_setup_func, pri_cleanup}
+#define ASYM_ALGORITHM_new(name, NAME, keysize, type, pub_test_func, pub_setup_func, pub_cleanup, pri_test_func, pri_setup_func, pri_cleanup) \
+{QUOTE(name-keysize), keysize/8, type | ALGORITHM_ASYM, QUOTE(NAME-keysize public operation), QUOTE(NAME-keysize private operation), pub_test_func, pub_setup_func, pub_cleanup, pri_test_func, pri_setup_func, pri_cleanup}
 
 typedef struct {
 
