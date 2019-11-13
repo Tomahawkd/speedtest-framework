@@ -76,6 +76,11 @@ static void list_algorithms() {
         cu = ALL_ASYM_ALGORITHMS[i];
         printf("%s ", cu.name);
     }
+        
+    for (i = 0; i < KEYGEN_ALGORITHM_COUNT; ++i) {
+        current = KEYGEN_ALGORITHMS[i];
+        printf("%s ", current.name);
+    }
 }
 
 #define CONVERT_PUB 0
