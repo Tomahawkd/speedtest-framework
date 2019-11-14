@@ -138,6 +138,10 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
 
             goto cleanup;
         } else {
+            if (params[0].loop_count == -1) {
+                speed = -2;
+                goto cleanup;
+            }
             goto single_test_result;
         }
     } else {
