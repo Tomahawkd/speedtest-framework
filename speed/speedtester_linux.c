@@ -35,7 +35,7 @@ void non_thread_func(SPEEDTEST_PARAM_RESULT *param, OPT_CONF *option) {
     for (;;) {
         err = param->test_func(param->text, param->textlen, param->tmpout);
         if (err) {
-            printf("Error %d detect, abort\n", err);
+            printf("Error %d detect at %ld's loop, abort\n", err, param->loop_count);
             param->loop_count = -1;
             return;
         }
