@@ -77,7 +77,7 @@ static void list_algorithms() {
         printf("%s ", cu.name);
     }
         
-    for (i = 0; i < KEYGEN_ALGORITHM_COUNT; ++i) {
+    for (i = 0; i < KEYGEN_ALGORITHMS_COUNT; ++i) {
         current = KEYGEN_ALGORITHMS[i];
         printf("%s ", current.name);
     }
