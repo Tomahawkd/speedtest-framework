@@ -6,8 +6,41 @@
 
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <Windows.h>
+#else
 #include <sys/time.h>
 #include <pthread.h>
+#endif
+
+#ifdef _WIN32
+// reference from: https://stackoverflow.com/questions/10905892/equivalent-of-gettimeday-for-windows
+// the struct already defined in winsocks.h in my pc, uncomment the follows if not defined
+//typedef struct timeval {
+//    long tv_sec;
+//    long tv_usec;
+//};
+
+int gettimeofday(struct timeval * tp, struct timezone * tzp) {
+    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+    // This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
+    // until 00:00:00 January 1, 1970
+    static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
+
+    SYSTEMTIME  system_time;
+    FILETIME    file_time;
+    uint64_t    time;
+
+    GetSystemTime( &system_time );
+    SystemTimeToFileTime( &system_time, &file_time );
+    time =  ((uint64_t)file_time.dwLowDateTime )      ;
+    time += ((uint64_t)file_time.dwHighDateTime) << 32u;
+
+    tp->tv_sec  = (long) ((time - EPOCH) / 10000000L);
+    tp->tv_usec = (long) (system_time.wMilliseconds * 1000);
+    return 0;
+}
+#endif
 
 typedef struct {
 
@@ -54,7 +87,7 @@ void thread_func(SPEEDTEST_PARAM_RESULT *param) {
     for (;;) {
         err = param->test_func(param->text, param->textlen, param->tmpout);
         if (err) {
-            printf("Error %d detect, abort\n", err);
+            printf("Error %d detect at %ld's loop, abort\n", err, param->loop_count);
             param->loop_count = -1;
             return;
         }
@@ -62,8 +95,10 @@ void thread_func(SPEEDTEST_PARAM_RESULT *param) {
         gettimeofday(&param->last, NULL);
         param->loop_count++;
 
+#ifndef _WIN32
         // give a breakpoint that the cancel request can be proceeded
         pthread_testcancel();
+#endif
     }
 }
 
@@ -74,9 +109,13 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
     long sum_loop = 0;
     int i, num = (options->threads > 0 ? options->threads : 1);
 
+#ifdef _WIN32
+    HANDLE *pthreads = NULL;
+#else
     pthread_t *pthreads = NULL;
-    struct timeval threads_s, threads_t;
     struct timespec req = {options->interval - 1, 999900000}, rem;
+#endif
+    struct timeval threads_s, threads_t;
     SPEEDTEST_PARAM_RESULT *params = malloc(sizeof(SPEEDTEST_PARAM_RESULT) * num);
     memset(params, 0, sizeof(SPEEDTEST_PARAM_RESULT) * options->threads);
     for (i = 0; i < num; ++i) {
@@ -93,16 +132,30 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
 
     if (options->threads > 0) {
 
+#ifdef _WIN32
+        pthreads = malloc(sizeof(HANDLE) * options->threads);
+#else
         pthreads = malloc(sizeof(pthread_t) * options->threads);
+#endif
 
         gettimeofday(&threads_s, NULL);
         for (i = 0; i < options->threads; ++i) {
+#ifdef _WIN32
+            pthreads[i] = CreateThread(NULL, 0,
+                    (LPTHREAD_START_ROUTINE) thread_func, &params[i], 0, NULL);
+            if (pthreads[i] == NULL) {
+                printf("Thread %d creation error, abort\n", i + 1);
+                for (; i >= 0; --i) {
+                    TerminateThread(pthreads[i], 0);
+                }
+#else
             if (pthread_create(&pthreads[i], NULL, (void *) thread_func, &params[i])) {
                 printf("Thread %d creation error, abort\n", i + 1);
                 for (; i >= 0; --i) {
                     pthread_cancel(pthreads[i]);
                     pthread_join(pthreads[i], NULL);
                 }
+#endif
                 speed = -2;
                 goto cleanup;
 
@@ -112,10 +165,14 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
             }
         }
 
+#ifdef _WIN32
+        Sleep(options->interval * 1000);
+        for (i = 0; i < options->threads; ++i) TerminateThread(pthreads[i], 0);
+#else
         nanosleep(&req, &rem);
-
         for (i = 0; i < options->threads; ++i) pthread_cancel(pthreads[i]);
         for (i = 0; i < options->threads; ++i) pthread_join(pthreads[i], NULL);
+#endif
         gettimeofday(&threads_t, NULL);
 
         if (options->threads > 1) {
