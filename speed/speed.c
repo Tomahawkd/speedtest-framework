@@ -4,17 +4,18 @@
 
 #include <stdio.h>
 #include <math.h>
-
-#ifdef _WIN32
-#else
-#include <sys/utsname.h>
-#endif
-
 #include "speed.h"
 #include "argparse.h"
 #include "speedtester.h"
 #include "test_include.h"
 #include "sys_random.h"
+
+#ifdef _WIN32
+#include <Windows.h>
+#include <sysinfoapi.h>
+#else
+#include <sys/utsname.h>
+#endif
 
 //======================================== argument process definition ===================================//
 static OPT_STATE __help(const char **args, int count, void *data);
@@ -138,6 +139,7 @@ int main(int argc, const char *argv[]) {
     getrandombits(text, MAX_TEST_SIZE);
 
 #ifdef _WIN32
+    SYSTEM_INFO n;
 #else
     struct utsname n;
 #endif
@@ -254,10 +256,13 @@ int main(int argc, const char *argv[]) {
             }
         }
 
+        printf("\nSystem info:\n");
 #ifdef _WIN32
+        GetSystemInfo(&n);
+        printf("System name: Windows\n");
+        printf("Hardware type: %hu\n", n.wProcessorArchitecture);
 #else
         uname(&n);
-        printf("\nSystem info:\n");
         printf("System name: %s\n", n.sysname);
         printf("System version: %s\n", n.version);
         printf("Hardware type: %s\n", n.machine);
