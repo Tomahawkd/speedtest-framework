@@ -8,7 +8,7 @@
 #include "speed.h"
 #include "test/aes_test.h"
 
-#define ALGORITHM_COUNT 30
+#define ALGORITHM_COUNT 12
 const ALGORITHM ALL_ALGORITHMS[ALGORITHM_COUNT] = {
         {"aes-128-ecb", "AES-128-ecb", ALGORITHM_SYM, test_wrp_aes, setup_wrp_aes_128_ecb, cleanup_wrp_aes},
         {"aes-192-ecb", "AES-192-ecb", ALGORITHM_SYM, test_wrp_aes, setup_wrp_aes_192_ecb, cleanup_wrp_aes},
