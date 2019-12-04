@@ -85,4 +85,4 @@ Although most of them are useless......
 
 For MacOS, the framework is fully compatiable.(My develop env)   
 For Linux, need link to pthread and m(math lib).(Actually this should exist in Linux).  
-For Windows, I haven't get familiar to Windows API, but it may update in the future release.
+For Windows, I've update an experimental speed test, but may still buggy.
