@@ -84,6 +84,7 @@ void thread_func(SPEEDTEST_PARAM_RESULT *param) {
     int err;
 
     gettimeofday(&param->start, NULL);
+    gettimeofday(&param->last, NULL);
     for (;;) {
         err = param->test_func(param->text, param->textlen, param->tmpout);
         if (err) {
