@@ -32,8 +32,8 @@ typedef struct {
 } ALGORITHM;
 
 #define QUOTE(str) #str
-#define ASYM_ALGORITHM_new(name, NAME, keysize, type, pub_test_func, pub_setup_func, pub_cleanup, pri_test_func, pri_setup_func, pri_cleanup) \
-{QUOTE(name-keysize), keysize/8, type | ALGORITHM_ASYM, QUOTE(NAME-keysize public operation), QUOTE(NAME-keysize private operation), pub_test_func, pub_setup_func, pub_cleanup, pri_test_func, pri_setup_func, pri_cleanup}
+#define ASYM_ALGORITHM_new(name, NAME, keysize, type, pub_test_func, pri_test_func, setup_func, cleanup) \
+{QUOTE(name-keysize), keysize/8, type | ALGORITHM_ASYM, QUOTE(NAME-keysize public operation), QUOTE(NAME-keysize private operation), pub_test_func, setup_func, cleanup, pri_test_func, setup_func, cleanup}
 
 typedef struct {
 
