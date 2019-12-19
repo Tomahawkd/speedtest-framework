@@ -11,33 +11,31 @@ static uint8_t iv[32];
 static uint8_t tmpiv[32];
 static uint8_t aad[32];
 
-static EVP_CIPHER_CTX *ctx;
-
 #define AES_TESTSUITE(keylen, mode) \
-void setup_wrp_aes_##keylen##_##mode() { \
-    ctx = EVP_CIPHER_CTX_new(); \
-    EVP_EncryptInit_ex(ctx, EVP_aes_##keylen##_##mode(), NULL, k, iv); \
-    EVP_CIPHER_CTX_set_padding(ctx, 0); \
+void setup_wrp_aes_##keylen##_##mode(void **ctx) { \
+    *ctx = EVP_CIPHER_CTX_new(); \
+    EVP_EncryptInit_ex(*ctx, EVP_aes_##keylen##_##mode(), NULL, k, iv); \
+    EVP_CIPHER_CTX_set_padding(*ctx, 0); \
 } \
 
 #define AES_GCM(keylen) \
-void setup_wrp_aes_##keylen##_gcm() { \
+void setup_wrp_aes_##keylen##_gcm(void **ctx) { \
     int len = 0; \
-    ctx = EVP_CIPHER_CTX_new(); \
-    EVP_CIPHER_CTX_set_padding(ctx, 0); \
-    EVP_EncryptInit_ex(ctx, EVP_aes_##keylen##_gcm(), NULL, NULL, NULL); \
-    EVP_EncryptInit_ex(ctx, NULL, NULL, k, iv); \
-    EVP_EncryptUpdate(ctx, NULL, &len, aad, 32); \
+    *ctx = EVP_CIPHER_CTX_new(); \
+    EVP_CIPHER_CTX_set_padding(*ctx, 0); \
+    EVP_EncryptInit_ex(*ctx, EVP_aes_##keylen##_gcm(), NULL, NULL, NULL); \
+    EVP_EncryptInit_ex(*ctx, NULL, NULL, k, iv); \
+    EVP_EncryptUpdate(*ctx, NULL, &len, aad, 32); \
 }
 
-int test_wrp_aes(uint8_t *text, uint32_t textlen, uint8_t *tmpout) {
+int test_wrp_aes(void *ctx, uint8_t *text, uint32_t textlen, uint8_t *tmpout) {
     int32_t outlen = 0;
     if (!EVP_EncryptUpdate(ctx, tmpout, &outlen, text, textlen)) return 1;
     return 0;
 }
 
-void cleanup_wrp_aes() {
-    EVP_CIPHER_CTX_free(ctx);
+void cleanup_wrp_aes(void **ctx) {
+    EVP_CIPHER_CTX_free(*ctx);
 }
 
 AES_TESTSUITE(128, ecb)

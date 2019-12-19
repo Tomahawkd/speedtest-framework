@@ -15,9 +15,9 @@ typedef struct {
     char *name; // algorithm name
     char *description;
     unsigned int type;  // algorithm type
-    int (*test_func)(uint8_t *text, uint32_t textlen, uint8_t *out); // algorithm test function
-    void (*setup_func)(); // setup functions like keygen
-    void (*cleanup)(); // cleanup function
+    int (*test_func)(void *ctx, uint8_t *text, uint32_t textlen, uint8_t *out); // algorithm test function
+    void (*setup_func)(void **ctx); // setup functions like keygen
+    void (*cleanup)(void **ctx); // cleanup function
 
 } ALGORITHM;
 ```  
@@ -36,12 +36,12 @@ typedef struct {
     char *pub_description;
     char *pri_description;
 
-    int (*pub_test_func)(uint8_t *text, uint32_t textlen, uint8_t *out); // algorithm test function
-    void (*pub_setup_func)(); // setup functions like keygen
-    void (*pub_cleanup)(); // cleanup function
-    int (*pri_test_func)(uint8_t *text, uint32_t textlen, uint8_t *out); // algorithm test function
-    void (*pri_setup_func)(); // setup functions like keygen
-    void (*pri_cleanup)(); // cleanup function
+    int (*pub_test_func)(void *ctx, uint8_t *text, uint32_t textlen, uint8_t *out); // algorithm test function
+    void (*pub_setup_func)(void **ctx); // setup functions like keygen
+    void (*pub_cleanup)(void **ctx); // cleanup function
+    int (*pri_test_func)(void *ctx, uint8_t *text, uint32_t textlen, uint8_t *out); // algorithm test function
+    void (*pri_setup_func)(void **ctx); // setup functions like keygen
+    void (*pri_cleanup)(void **ctx); // cleanup function
 
 } ASYM_ALGORITHM;
 ```  

@@ -8,10 +8,10 @@
 #include <stdint.h>
 
 #define AES_TESTSUITE_HEADER(keylen, mode) \
-void setup_wrp_aes_##keylen##_##mode();
+void setup_wrp_aes_##keylen##_##mode(void **ctx);
 
-int test_wrp_aes(uint8_t *text, uint32_t textlen, uint8_t *tmpout);
-void cleanup_wrp_aes();
+int test_wrp_aes(void *ctx, uint8_t *text, uint32_t textlen, uint8_t *tmpout);
+void cleanup_wrp_aes(void **ctx);
 
 AES_TESTSUITE_HEADER(128, ecb)
 AES_TESTSUITE_HEADER(128, cbc)

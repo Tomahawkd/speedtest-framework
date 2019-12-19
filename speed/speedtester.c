@@ -44,7 +44,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp) {
 
 typedef struct {
 
-    int (*test_func)(uint8_t *text, uint32_t textlen, uint8_t *out);
+    int (*test_func)(void *ctx, uint8_t *text, uint32_t textlen, uint8_t *out);
 
     struct timeval start;
     // time val to record the last time
@@ -54,6 +54,7 @@ typedef struct {
     uint32_t textlen;
     uint8_t *tmpout;
     long loop_count;
+    void *ctx;
 
 } SPEEDTEST_PARAM_RESULT;
 
@@ -62,13 +63,12 @@ static long double calc_time_interval(struct timeval *s, struct timeval *e) {
 }
 
 void non_thread_func(SPEEDTEST_PARAM_RESULT *param, OPT_CONF *option) {
-    int err;
 
     gettimeofday(&param->start, NULL);
     for (;;) {
-        err = param->test_func(param->text, param->textlen, param->tmpout);
+        int err = param->test_func(param->ctx, param->text, param->textlen, param->tmpout);
         if (err) {
-            printf("Error %d detect at %ld's loop, abort\n", err, param->loop_count);
+            printf("Error %d detect, abort\n", err);
             param->loop_count = -1;
             return;
         }
@@ -81,14 +81,13 @@ void non_thread_func(SPEEDTEST_PARAM_RESULT *param, OPT_CONF *option) {
 }
 
 void thread_func(SPEEDTEST_PARAM_RESULT *param) {
-    int err;
 
     gettimeofday(&param->start, NULL);
     gettimeofday(&param->last, NULL);
     for (;;) {
-        err = param->test_func(param->text, param->textlen, param->tmpout);
+        int err = param->test_func(param->ctx, param->text, param->textlen, param->tmpout);
         if (err) {
-            printf("Error %d detect at %ld's loop, abort\n", err, param->loop_count);
+            printf("Error 0x%.2X detect at %ld's loop, abort\n", err, param->loop_count);
             param->loop_count = -1;
             return;
         }
@@ -103,7 +102,7 @@ void thread_func(SPEEDTEST_PARAM_RESULT *param) {
     }
 }
 
-long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_t *text, const uint32_t textlen, uint8_t *tmpout) {
+long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_t *text, uint32_t textlen, uint8_t *tmpout) {
 
     long double interval;
     long double speed;
@@ -124,10 +123,10 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
         params[i].text = text;
         params[i].textlen = textlen;
         params[i].tmpout = tmpout;
+        if (algorithm->setup_func) algorithm->setup_func(&params[i].ctx);
     }
 
-    if (algorithm->setup_func) algorithm->setup_func();
-    printf("testing %s on %d bytes size: ", algorithm->description, textlen);
+    printf("testing %s on %u bytes size: ", algorithm->description, textlen);
     fflush(stdout);
     if (options->threads > 1) printf("\n");
 
@@ -217,7 +216,8 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
            params[0].loop_count, interval, speed);
 
     cleanup:
-    if (algorithm->cleanup) algorithm->cleanup();
+    if (algorithm->cleanup)
+        for (i = 0; i < num; ++i) algorithm->cleanup(&params[i].ctx);
     free(params);
     if (pthreads != NULL) free(pthreads);
     return speed;
