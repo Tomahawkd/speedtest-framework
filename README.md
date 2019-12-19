@@ -46,7 +46,9 @@ typedef struct {
 } ASYM_ALGORITHM;
 ```  
 And the marco defined as follows:  
-`#define ASYM_ALGORITHM_new(name, NAME, keysize, type, pub_test_func, pri_test_func, setup_func, cleanup)`
+```c
+#define ASYM_ALGORITHM_new(name, NAME, keysize, type, pub_test_func, pri_test_func, setup_func, cleanup)
+```  
 Note: In this section, the textlen is the same size as the keylen in `ASYM_ALGORITHM`(for RSA compatiability), 
 just ignore it if you would not use it, in this case you may use `text` as input with maximum length 16384(defined in speed.c)
 
