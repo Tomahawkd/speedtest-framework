@@ -12,7 +12,6 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-#include <sysinfoapi.h>
 #include <winreg.h>
 #else
 #include <sys/utsname.h>
