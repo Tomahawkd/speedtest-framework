@@ -180,10 +180,10 @@ static void print_sys_info() {
     const char *prefix = "model name";
     FILE *file = fopen("/proc/cpuinfo", "rb");
     int offset = 0;
-    int prefix_set = 0;
+    int prefix_set = 0, i;
 
     if (file != NULL) {
-        for (int i = 0; !feof(file); ++i) {
+        for (i = 0; !feof(file); ++i) {
             fread(&model[offset], sizeof(char), 1, file);
             if (!prefix_set && offset < strlen(prefix)) {
                 if (model[offset] == prefix[offset]) offset++;
