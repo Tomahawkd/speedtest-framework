@@ -13,8 +13,12 @@
 #ifdef _WIN32
 #include <Windows.h>
 #include <sysinfoapi.h>
+#include <winreg.h>
 #else
 #include <sys/utsname.h>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 #endif
 
 //======================================== argument process definition ===================================//
@@ -125,6 +129,94 @@ static long double speed_result[ALGORITHM_COUNT][TEST_SIZE_COUNT] = {0};
 static long double asym_speed_result[ASYM_ALGORITHM_COUNT][2] = {0};
 static long double keygen_speed_result[KEYGEN_ALGORITHMS_COUNT] = {0};
 
+#ifdef _WIN32
+static ULONG get_string_from_registry(HKEY key, const char *path, const char *name, char *buf, size_t size) {
+    HKEY hkey;
+    ULONG r = RegOpenKeyEx(key, path, 0, KEY_READ, &hkey);
+    DWORD type = REG_SZ;
+    if (r == ERROR_SUCCESS) {
+        r = RegQueryValueEx(hkey, name, NULL, &type, (LPBYTE) buf, (LPDWORD) &size);
+    }
+    RegCloseKey(hkey);
+    return r;
+}
+#endif
+
+static void print_sys_info() {
+    char model[512] = {0};
+    size_t size = sizeof(model);
+#ifdef _WIN32
+    if (get_string_from_registry(HKEY_LOCAL_MACHINE,
+            "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", "ProcessorNameString",
+            model, size) == ERROR_SUCCESS) {
+        printf("CPU: %s\n", model);
+        memset(model, 0, size);
+    }
+
+    if (get_string_from_registry(HKEY_LOCAL_MACHINE,
+                                 "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "ProductName",
+                                 model, size) == ERROR_SUCCESS) {
+        printf("System name: %s\n", model);
+        memset(model, 0, size);
+    }
+
+    if (get_string_from_registry(HKEY_LOCAL_MACHINE,
+                                 "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "CurrentBuild",
+                                 model, size) == ERROR_SUCCESS) {
+        printf("System version: %s\n", model);
+        memset(model, 0, size);
+    }
+
+    if (get_string_from_registry(HKEY_LOCAL_MACHINE,
+                                 "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
+                                 "PROCESSOR_ARCHITECTURE",
+                                 model, size) == ERROR_SUCCESS) {
+        printf("Hardware type: %s\n", model);
+    }
+#else
+    struct utsname n;
+#ifdef __APPLE__
+    sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0);
+#else
+    const char *prefix = "model name";
+    FILE *file = fopen("/proc/cpuinfo", "rb");
+    int offset = 0;
+    int prefix_set = 0;
+
+    if (file != NULL) {
+        for (int i = 0; !feof(file); ++i) {
+            fread(&model[offset], sizeof(char), 1, file);
+            if (!prefix_set && offset < strlen(prefix)) {
+                if (model[offset] == prefix[offset]) offset++;
+                else {
+                    offset = 0;
+                    memset(model, 0, offset);
+                }
+            } else {
+                prefix_set = 1;
+                if (model[offset] == ':') {
+                    //trim space
+                    fread(model, sizeof(char), 1, file);
+                    offset = 0;
+                    continue;
+                }
+                if (model[offset] == '\n') {
+                    model[offset] = 0;
+                    break;
+                }
+                offset++;
+            }
+        }
+    }
+#endif
+    uname(&n);
+    printf("CPU: %s\n", model);
+    printf("System name: %s\n", n.sysname);
+    printf("System version: %s\n", n.version);
+    printf("Hardware type: %s\n", n.machine);
+#endif
+}
+
 int main(int argc, const char *argv[]) {
 
     unsigned long i;
@@ -137,13 +229,6 @@ int main(int argc, const char *argv[]) {
     OPT_RESULT result;
 
     getrandombits(text, MAX_TEST_SIZE);
-
-#ifdef _WIN32
-    SYSTEM_INFO n;
-#else
-    struct utsname n;
-#endif
-
     parse_arg(OPTION_ARRAY, OPTION_ARRAY_LENGTH, argc, argv, &opt, &result);
 
     switch (result.action) {
@@ -257,16 +342,7 @@ int main(int argc, const char *argv[]) {
         }
 
         printf("\nSystem info:\n");
-#ifdef _WIN32
-        GetSystemInfo(&n);
-        printf("System name: Windows\n");
-        printf("Hardware type: %hu\n", n.wProcessorArchitecture);
-#else
-        uname(&n);
-        printf("System name: %s\n", n.sysname);
-        printf("System version: %s\n", n.version);
-        printf("Hardware type: %s\n", n.machine);
-#endif
+        print_sys_info();
 
         // summary
         if (is_ciph) {
