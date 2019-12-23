@@ -122,7 +122,7 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
 #endif
     struct timeval threads_s, threads_t;
     SPEEDTEST_PARAM_RESULT *params = malloc(sizeof(SPEEDTEST_PARAM_RESULT) * num);
-    memset(params, 0, sizeof(SPEEDTEST_PARAM_RESULT) * options->threads);
+    memset(params, 0, sizeof(SPEEDTEST_PARAM_RESULT) * num);
     for (i = 0; i < num; ++i) {
         params[i].test_func = algorithm->test_func;
         params[i].text = text;
