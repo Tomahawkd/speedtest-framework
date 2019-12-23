@@ -14,6 +14,9 @@
 #endif
 
 #ifdef _WIN32
+
+static BOOL timeup = FALSE;
+
 // reference from: https://stackoverflow.com/questions/10905892/equivalent-of-gettimeday-for-windows
 // the struct already defined in winsocks.h in my pc, uncomment the follows if not defined
 //typedef struct timeval {
@@ -98,6 +101,8 @@ void thread_func(SPEEDTEST_PARAM_RESULT *param) {
 #ifndef _WIN32
         // give a breakpoint that the cancel request can be proceeded
         pthread_testcancel();
+#else
+        if (timeup) ExitThread(0);
 #endif
     }
 }
@@ -134,6 +139,7 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
 
 #ifdef _WIN32
         pthreads = malloc(sizeof(HANDLE) * options->threads);
+        timeup = FALSE;
 #else
         pthreads = malloc(sizeof(pthread_t) * options->threads);
 #endif
@@ -145,12 +151,14 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
                     (LPTHREAD_START_ROUTINE) thread_func, &params[i], 0, NULL);
             if (pthreads[i] == NULL) {
                 printf("Thread %d creation error, abort\n", i + 1);
+                fflush(stdout);
                 for (; i >= 0; --i) {
                     TerminateThread(pthreads[i], 0);
                 }
 #else
             if (pthread_create(&pthreads[i], NULL, (void *) thread_func, &params[i])) {
                 printf("Thread %d creation error, abort\n", i + 1);
+                fflush(stdout);
                 for (; i >= 0; --i) {
                     pthread_cancel(pthreads[i]);
                     pthread_join(pthreads[i], NULL);
@@ -162,12 +170,14 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
             } else {
                 if (options->threads > 1)
                     printf("Thread %d started\n", i + 1);
+                fflush(stdout);
             }
         }
 
 #ifdef _WIN32
         Sleep(options->interval * 1000);
-        for (i = 0; i < options->threads; ++i) TerminateThread(pthreads[i], 0);
+        timeup = TRUE;
+        for (i = 0; i < options->threads; ++i) WaitForSingleObject(pthreads[i], INFINITE);
 #else
         nanosleep(&req, &rem);
         for (i = 0; i < options->threads; ++i) pthread_cancel(pthreads[i]);
@@ -185,6 +195,7 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
                 speed = (long double) params[i].loop_count / interval;
                 printf("Thread %d: %ld loops used %Lf s. (Approximate %Lf tps)\n",
                        i + 1, params[i].loop_count, interval, speed);
+                fflush(stdout);
                 sum_loop += params[i].loop_count;
             }
 
@@ -192,6 +203,7 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
             speed = (long double) sum_loop / interval;
             printf("%ld loops used %Lf s. (Approximate %Lf tps)\n",
                    sum_loop, interval, speed);
+            fflush(stdout);
 
             goto cleanup;
         } else {
@@ -214,8 +226,9 @@ long double test_algorithm(const ALGORITHM *algorithm, OPT_CONF *options, uint8_
     speed = (long double) params[0].loop_count / interval;
     printf("%ld loops used %Lf s. (Approximate %Lf tps)\n",
            params[0].loop_count, interval, speed);
+    fflush(stdout);
 
-    cleanup:
+cleanup:
     if (algorithm->cleanup)
         for (i = 0; i < num; ++i) algorithm->cleanup(&params[i].ctx);
     free(params);
